@@ -1,229 +1,84 @@
-# Building a Neural Network for Diabetes Risk Prediction
+# UdaciHealth
 
-In this project, you will build and optimize a neural network to predict diabetes risk using real-world public health data. You’ll develop a complete machine learning workflow, from exploratory data analysis through model tuning and evaluation, designed for clinical decision support in healthcare settings.
+Deep learning project 1 for the Udacity Deep Learning Nanodegree. The project trains and evaluates a PyTorch multi-layer perceptron that screens for diabetes risk from CDC health indicators, then extends the baseline with threshold tuning, feature engineering, and class-weighted training on the original imbalanced population.
 
-**Read this README to discover:**
+## Highlights
 
-1. [Your Mission](#your-mission)  
-   - [Dataset](#dataset)
-2. [Getting Started](#getting-started)  
-   - [Installation](#installation)  
-   - [Project Structure](#project-structure)
-3. [Project Instructions](#project-instructions)
-4. [Project Workflow](#project-workflow)  
-   0. [Set up the environment](#1-set-up-the-environment-10-min)  
-   1. [Load and explore the dataset](#2-load-and-explore-the-dataset-45-min)  
-   2. [Preprocess data](#3-preprocess-data-50-min)  
-   3. [Design the model architecture](#4-design-the-model-architecture-40-min)  
-   4. [Train the model](#5-train-the-model-60-min)  
-   5. [Evaluate the model](#6-evaluate-the-model-50-min)  
-   6. [Improve and tune the model](#7-improve-and-tune-the-model-60-min)  
-5. [Deliverables](#deliverables)
-6. [Evaluation](#evaluation)
-7. [Built With](#built-with)
-8. [License](#license)
-9. [Appendix: Troubleshooting Guide](#appendix-troubleshooting-guide)
+- Built a full tabular deep-learning workflow in `starter-kit/diabetes_prediction_mlp.ipynb`
+- Completed all rubric TODOs and executed the notebook end to end
+- Tuned the screening threshold to lift balanced-test recall from `0.8070` to `0.8974`
+- Re-ran the model on the original `253,680`-row CDC dataset and used class weighting to improve default-threshold recall from `0.1884` to `0.8014`
+- Added a GitHub Pages landing site plus a static HTML export of the final notebook
 
----
+## Results
 
-## Your Mission
+Balanced test set:
 
-**Company:** UdaciHealth  
-**Client:** Regional hospital network  
-**Problem:** Limited resources for comprehensive diabetes testing across thousands of monthly patients  
-**Solution:** Automated pre-screening system to prioritize diagnostic testing  
+- Baseline: accuracy `0.7483`, precision `0.7222`, recall `0.8070`, F1 `0.7623`, ROC-AUC `0.8249`
+- Best screening configuration: threshold-tuned deep architecture at `0.35`, precision `0.6720`, recall `0.8974`, F1 `0.7685`, ROC-AUC `0.8258`
 
-**Success criteria:**  
-Build a classifier that catches most diabetic patients (high recall) while minimizing false alarms (acceptable precision), enabling efficient resource allocation for follow-up testing.
+Original imbalanced CDC set:
 
-**Key stakeholders:**
-- Clinical team (needs interpretable, actionable results)  
-- Hospital administrators (cost-effectiveness concerns)  
-- IT department (requires deployment-ready model)  
+- Unweighted model at `0.50`: accuracy `0.8514`, recall `0.1884`
+- Class-weighted model at `0.50`: accuracy `0.7116`, recall `0.8014`
 
-### Dataset
-**Source:** [CDC Diabetes Health Indicators Dataset](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset)  
-**Size:** ~50,000 survey responses with 50% diabetic and 50% non-diabetic entries (balanced subset from original 253K)  
-**Features:** 21 health and lifestyle indicators including:
-- Demographics (age, sex)  
-- Physical measurements (BMI, blood pressure)  
-- Lifestyle factors (smoking, physical activity)  
-- Medical history (high cholesterol, stroke, heart disease)  
+## Repository Layout
 
-**About the balanced dataset**: The original CDC data has ~14% diabetes prevalence. We've balanced this to 50-50 by downsampling the majority class—a valid production strategy when you have sufficient minority samples. This lets you focus on neural network fundamentals first, with more detail on this decision in the notebook.
-
----
-
-## Getting Started
-
-These instructions will help you set up your development environment and understand the project structure.
-
-### Installation
-
-> For Udacity students: If you are running in Udacity's hosted environment, you can skip installation.
-
-1. Clone this repository.
-
-```sh
-git clone <repo-name>
-cd starter-kit
-```
-
-2. All dependencies for the project are collected in the `requirements.txt` file.  
-
-Install for your environment by running:
-```sh
-pip install -r requirements.txt
-```
-
-Verify your installation by importing the key libraries:
-
-```python
-import torch
-import pandas as pd
-import sklearn
-print(f"PyTorch version: {torch.__version__}")
-```
-
-### Project Structure
-```
+```text
+.
+├── docs/
+│   ├── index.html
+│   └── notebook.html
+├── scripts/
+│   └── update_notebook.py
 ├── starter-kit/
-│   │
-│   ├── diabetes_prediction_mlp.ipynb - Main project notebook (all work done here)
-│   │
-│   └── data/
-│      ├── diabetes_data.csv - CDC Diabetes Health Indicators dataset
-│      └── data_dictionary.md - Feature descriptions and clinical context
-│
-├── .gitignore 
-├── README.md 
+│   ├── data/
+│   │   ├── data_dictionary.md
+│   │   ├── diabetes_data.csv
+│   │   └── diabetes_012_health_indicators_BRFSS2015.csv
+│   └── diabetes_prediction_mlp.ipynb
+├── .github/workflows/pages.yml
+├── .gitignore
 └── requirements.txt
 ```
 
----
+## Setup
 
-## Project Instructions
-Your task is to build and optimize a multi layer perceptron (MLP) classifier for diabetes risk prediction while meeting minimal clinical requirements:
+Use Python `3.12` or newer.
 
-- [ ] Define a reasonable better-than-average baseline model on your chosen metrics
-- [ ] Demonstrate systematic improvement (5%+ on top metric) through experimentation  
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip install -r requirements.txt
+```
 
-Within the `diabetes_prediction_mlp.ipynb` notebook, you will find **TODOs** guiding you through each step.
+Run the notebook locally:
 
-**IMPORTANT:** The notebook provides comprehensive guidance with hints and reference links for each TODO. Read all markdown explanations carefully—they contain critical context for healthcare applications.
+```bash
+jupyter notebook starter-kit/diabetes_prediction_mlp.ipynb
+```
 
----
+Rebuild the notebook source programmatically if needed:
 
-## Project Workflow
-Your main workspace is the `diabetes_prediction_mlp.ipynb` notebook.
+```bash
+python scripts/update_notebook.py
+```
 
-> For non-Udacity students: If you are not running in Udacity's hosted environment, set up with [JupyterLab](https://jupyter.org/) locally or through another host.
+Export a fresh HTML artifact:
 
-The notebook is organized into 8 sections (~5-6 hours total):
+```bash
+jupyter nbconvert --to html --output notebook.html --output-dir docs starter-kit/diabetes_prediction_mlp.ipynb
+```
 
-### 1. Set up the environment (10 min)
-- Import libraries and configure environment  
-- Set random seeds for reproducibility  
-- _(If available)_ Set GPU execution
+## Data Sources
 
-### 2. Load and explore the dataset (45 min)
-- Load CDC diabetes dataset (50,000 patients, 21 features)  
-- Perform exploratory data analysis  
-- Understand the class label distribution
-- Analyze feature correlations with diabetes  
+- Balanced instructional dataset: `starter-kit/data/diabetes_data.csv`
+- Original CDC dataset: `starter-kit/data/diabetes_012_health_indicators_BRFSS2015.csv`
+- Source reference: [CDC Diabetes Health Indicators Dataset on Kaggle](https://www.kaggle.com/datasets/alexteboul/diabetes-health-indicators-dataset)
+- Public mirror used for the imbalanced CSV: [JavaConterry/Data_Analysis](https://github.com/JavaConterry/Data_Analysis/blob/main/diabetes_012_health_indicators_BRFSS2015.csv)
 
-### 3. Preprocess the dataset (50 min)
-- Create stratified train/validation/test splits (60/20/20)  
-- Apply normalization (following "The Golden Rule")  
-- Convert data to PyTorch tensors  
-- Create DataLoaders for efficient batching  
+## GitHub Pages
 
-### 4. Design the model architecture (40 min)
-- Design multi-layer perceptron (MLP) with appropriate depth/width  
-- Implement forward pass and verify tensor shapes  
-- Configure loss function and optimizer
+The repository includes a static Pages landing site in `docs/` and an Actions workflow in `.github/workflows/pages.yml`. After deployment, the site should be available at:
 
-### 5. Train the model (60 min)
-- Implement complete training loop with forward/backward passes  
-- Train for multiple epochs with validation monitoring  
-- Plot and interpret training/validation loss curves  
-- Diagnose overfitting or underfitting  
-
-### 6. Evaluate the model (50 min)
-- Generate predictions on test set  
-- Calculate clinical metrics (precision, recall, F1-score, accuracy)  
-- Create confusion matrix with healthcare interpretation  
-- Analyze ROC curve and AUC score  
-- Provide clinical performance recommendations  
-
-### 7. Improve and tune the model (60 min)
-**Required:**  
-- Implement dropout regularization  
-- Experiment with learning rate tuning  
-- Adjust network architecture (depth/width)  
-
-**Student Choice:** Brainstorm 1–2 additional techniques:
-- Weight decay (L2 regularization)  
-- Early stopping  
-- Batch size experimentation  
-- Learning rate scheduling  
-- ...
-
-Reflect on experiments and document findings.
-
----
-
-## Deliverables
-- [ ] Completed notebook with all code cells executed  
-- [ ] Implementation of all required improvement techniques  
-- [ ] At least 1–2 student-choice improvement techniques explored
-- [ ] Final reflection on experimental results 
-
----
-
-## Evaluation
-Your project will be evaluated based on:
-
-- ✔️ **Data Handling** - Proper EDA, stratified splitting, normalization, and DataLoader implementation  
-- ✔️ **Model Design** - Appropriate MLP architecture with correct activations and loss functions  
-- ✔️ **Training Loop** - Complete implementation with proper gradient handling and convergence analysis  
-- ✔️ **Evaluation** - Comprehensive metrics with clinical interpretation and deployment recommendations  
-- ✔️ **Improvement** - Systematic experimentation with 3 required techniques + 1–2 brainstormed ideas
-- ✔️ **Clinical Context** - Thoughtful interpretation of results in healthcare setting  
-
----
-
-## Built With
-- **PyTorch** - Deep learning framework  
-- **scikit-learn** - Machine learning tools for preprocessing and evaluation  
-- **Pandas** - Data manipulation and analysis  
-- **Matplotlib** - Data visualization  
-
----
-
-## License
-[License](../LICENSE.md)
-
----
-
-## Appendix: Troubleshooting Guide
-
-**Issue: Loss is NaN**
-- **Cause**: Learning rate too high or data not normalized
-- **Solution**: Lower learning rate (try 0.0001) or check data preprocessing
-
-**Issue: No learning (flat loss)**
-- **Cause**: Learning rate too low or all zero inputs
-- **Solution**: Increase learning rate or verify data is not all zeros
-
-**Issue: Rapid overfitting**
-- **Cause**: Model too complex for dataset size
-- **Solution**: Add dropout, reduce layer sizes, or use weight decay
-
-**Issue: Slow training**
-- **Cause**: Batch size too small or CPU-bound
-- **Solution**: Increase batch size or enable GPU if available
-
-**Issue: Shape mismatch errors**
-- **Cause**: Incorrect tensor dimensions
-- **Solution**: Print shapes at each step, verify input/output dimensions
+`https://devin-thomas.github.io/udacihealth/`
