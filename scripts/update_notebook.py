@@ -615,28 +615,63 @@ print('  - Precision should still be monitored so recall gains do not create an 
 """,
         "*------- TODO 26: Write your answer here:*": """### Part A: Reflection on experiment results
 
-1. **The best overall screening configuration was the threshold-tuned deep architecture.** It pushed test recall from about `0.81` in the baseline run to about `0.90`, which is more than a 10% relative lift on the metric that matters most for screening.
+1. **The best overall screening configuration was the threshold-tuned deep architecture.** It pushed test recall from `0.8070` in the baseline run to `0.8974`, which is a little more than an 11% relative lift on the metric that matters most for screening.
 2. **Several consistent patterns showed up across experiments.** Dropout slightly improved generalization and landed very close to baseline, but the biggest gain came from changing the operating threshold rather than changing the network itself. Learning rates around `5e-4` to `1e-3` were the most stable; `1e-4` learned too cautiously, while `5e-3` converged faster but produced a wider precision/recall tradeoff. The deeper `128-64-32` network helped raw recall a bit more than the smaller architecture, which suggests there is some value in modeling higher-order feature interactions.
-3. **The biggest remaining weakness is precision under a recall-first operating point.** Once the threshold is lowered to catch more diabetic patients, false positives increase quickly, so operational deployment would need a workflow that can absorb extra follow-up testing volume.
-4. **The dataset appears strong enough for a screening model, but not for diagnosis.** The feature set captures known public-health risk factors well, yet the absence of lab measurements caps how far architecture tuning alone can go. Feature engineering only moved the needle modestly, which reinforces that threshold management and training on the real class distribution matter more here than simply stacking more layers.
+3. **The biggest remaining weakness is precision under a recall-first operating point.** Once the threshold is lowered to catch more diabetic patients, precision falls from `0.7222` in the baseline model to `0.6720` in the tuned screening configuration, so operational deployment would need a workflow that can absorb extra follow-up testing volume.
+4. **The dataset appears strong enough for a screening model, but not for diagnosis.** The feature set captures known public-health risk factors well, yet the absence of lab measurements caps how far architecture tuning alone can go. Feature engineering only moved F1 modestly, which reinforces that threshold management and training on the real class distribution matter more here than simply stacking more layers.
+
+### Part B: Additional improvements to try next
+
+1. **Early stopping**
+   - **Problem addressed:** Several experiments reach a validation-loss plateau after the first few meaningful improvements, especially the deeper architecture and the higher-learning-rate run. That pattern suggests extra epochs are increasingly spent refining the training loss rather than improving generalization.
+   - **Why this technique fits:** Early stopping watches validation loss and halts training once progress stops. That directly targets the plateau behavior already visible in the balanced-data experiments, and it is especially useful when the training loop already stores the best checkpoint.
+   - **Expected result:** I would expect recall to stay near the current `0.89` tuned operating point while recovering a small amount of precision, ideally pulling the tuned model from `0.6720` precision closer to the `0.69`-`0.70` range by preventing late-epoch drift. The likely gain is modest, but it should make the best model cheaper to train and a little more stable.
+   - **Implementation complexity:** **Easy.** The `train_model()` function already accepts a `patience` argument and restores the best validation-loss checkpoint, so this is mainly a matter of enabling that argument during experiments.
+
+2. **ReduceLROnPlateau learning-rate scheduling**
+   - **Problem addressed:** The loss curves flatten smoothly instead of diverging, which usually means the optimizer is near a useful region but needs smaller steps to keep improving. This is consistent with the baseline and dropout runs, where validation loss improves early and then levels off.
+   - **Why this technique fits:** `ReduceLROnPlateau` lowers the learning rate automatically when validation loss stops improving, which can help the optimizer make finer updates late in training without forcing a tiny learning rate from the start.
+   - **Expected result:** I would expect ROC-AUC to hold or improve slightly from the current `0.8258` range while preserving recall and recovering a bit of precision. A realistic goal would be to keep recall around `0.89` after threshold tuning while nudging precision up from `0.6720` toward the high `0.68s`.
+   - **Implementation complexity:** **Easy to medium.** The training loop already accepts a `scheduler` argument, so the main work is instantiating `optim.lr_scheduler.ReduceLROnPlateau` and selecting its patience and reduction factor.
+
+### Part C: Combined experiment proposal
+
+The combined experiment I would run next is **the deep `128-64-32` architecture plus `ReduceLROnPlateau` plus early stopping**. The deeper model already produced one of the strongest balanced-data recall results before threshold tuning, so it is the best candidate for a more controlled optimization strategy. The scheduler would let the model keep learning after the first validation plateau with smaller updates, while early stopping would prevent it from spending too many epochs chasing training-loss improvements that do not help generalization.
+
+- **Problem addressed:** This combination targets the exact pattern seen in Part A: the model has enough capacity to learn useful interactions, but later epochs produce diminishing returns and a growing risk of losing precision at the recall-first operating point.
+- **Why this technique fits:** The deeper architecture supplies capacity, the scheduler refines optimization once progress slows, and early stopping cuts off the run when validation quality stops improving. Together they address both model capacity and optimization stability rather than treating them separately.
+- **Expected result:** I would expect recall to hold close to the current tuned level of `0.8974` while improving precision from `0.6720` toward roughly `0.69`, which would lift F1 above the current `0.7685` without sacrificing the screening objective. Even if the metric gain is small, this combination should also produce a more repeatable and defensible training recipe.
+- **Implementation complexity:** **Medium.** The deeper architecture already exists, and both hooks are already supported in `train_model()`, so the main work is wiring those options together and comparing the resulting curves and metrics against the current threshold-tuned baseline.
 """,
-        "*------- TODO 27: Write your answer here:*": """### Part B: Additional improvements to try next
+        "### Part A: Reflection on experiment results": """### Part A: Reflection on experiment results
 
-1. **Class weights**
-   - Problem addressed: the model still trades away too much precision when recall is pushed up, and the real-world deployment set is heavily imbalanced.
-   - Why it fits: weighted loss increases the penalty for missed positives, so the optimizer pays more attention to underrepresented diabetic cases during training.
-   - Expected result: recall should climb into the low `0.80s` on the imbalanced dataset at the default threshold, while precision will remain modest but more clinically acceptable than an unweighted model tuned only after training.
-   - Implementation complexity: **Easy**. Swap to `nn.BCEWithLogitsLoss(pos_weight=...)` using the negative-to-positive ratio from the training split.
+1. **The best overall screening configuration was the threshold-tuned deep architecture.** It pushed test recall from `0.8070` in the baseline run to `0.8974`, which is a little more than an 11% relative lift on the metric that matters most for screening.
+2. **Several consistent patterns showed up across experiments.** Dropout slightly improved generalization and landed very close to baseline, but the biggest gain came from changing the operating threshold rather than changing the network itself. Learning rates around `5e-4` to `1e-3` were the most stable; `1e-4` learned too cautiously, while `5e-3` converged faster but produced a wider precision/recall tradeoff. The deeper `128-64-32` network helped raw recall a bit more than the smaller architecture, which suggests there is some value in modeling higher-order feature interactions.
+3. **The biggest remaining weakness is precision under a recall-first operating point.** Once the threshold is lowered to catch more diabetic patients, precision falls from `0.7222` in the baseline model to `0.6720` in the tuned screening configuration, so operational deployment would need a workflow that can absorb extra follow-up testing volume.
+4. **The dataset appears strong enough for a screening model, but not for diagnosis.** The feature set captures known public-health risk factors well, yet the absence of lab measurements caps how far architecture tuning alone can go. Feature engineering only moved F1 modestly, which reinforces that threshold management and training on the real class distribution matter more here than simply stacking more layers.
 
-2. **Threshold tuning**
-   - Problem addressed: the default `0.50` threshold leaves screening recall lower than it needs to be for a first-pass triage workflow.
-   - Why it fits: threshold tuning does not change the learned representation, but it does let us choose an operating point that matches the stakeholder cost structure revealed by the ROC curve.
-   - Expected result: recall should increase by more than `5%` relative to baseline, with a manageable precision tradeoff if the threshold is chosen on validation data rather than guessed.
-   - Implementation complexity: **Easy**. Sweep candidate thresholds on validation probabilities and select the one with the best F1 subject to a minimum recall target.
-""",
-        "*------- TODO 28: Write your answer here:*": """### Part C: Combined experiment proposal
+### Part B: Additional improvements to try next
 
-The most promising combined experiment is **class-weighted training on engineered features, followed by validation-set threshold tuning**. That combination addresses all three remaining problems at once: the real deployment class imbalance, the need to encode risk-factor interactions such as `BMI x Age`, and the need to optimize for screening recall rather than default accuracy. I would expect it to preserve a strong ROC-AUC while moving recall into the `0.80+` range on the imbalanced population at a threshold that still keeps false positives operationally manageable.
+1. **Early stopping**
+   - **Problem addressed:** Several experiments reach a validation-loss plateau after the first few meaningful improvements, especially the deeper architecture and the higher-learning-rate run. That pattern suggests extra epochs are increasingly spent refining the training loss rather than improving generalization.
+   - **Why this technique fits:** Early stopping watches validation loss and halts training once progress stops. That directly targets the plateau behavior already visible in the balanced-data experiments, and it is especially useful when the training loop already stores the best checkpoint.
+   - **Expected result:** I would expect recall to stay near the current `0.89` tuned operating point while recovering a small amount of precision, ideally pulling the tuned model from `0.6720` precision closer to the `0.69`-`0.70` range by preventing late-epoch drift. The likely gain is modest, but it should make the best model cheaper to train and a little more stable.
+   - **Implementation complexity:** **Easy.** The `train_model()` function already accepts a `patience` argument and restores the best validation-loss checkpoint, so this is mainly a matter of enabling that argument during experiments.
+
+2. **ReduceLROnPlateau learning-rate scheduling**
+   - **Problem addressed:** The loss curves flatten smoothly instead of diverging, which usually means the optimizer is near a useful region but needs smaller steps to keep improving. This is consistent with the baseline and dropout runs, where validation loss improves early and then levels off.
+   - **Why this technique fits:** `ReduceLROnPlateau` lowers the learning rate automatically when validation loss stops improving, which can help the optimizer make finer updates late in training without forcing a tiny learning rate from the start.
+   - **Expected result:** I would expect ROC-AUC to hold or improve slightly from the current `0.8258` range while preserving recall and recovering a bit of precision. A realistic goal would be to keep recall around `0.89` after threshold tuning while nudging precision up from `0.6720` toward the high `0.68s`.
+   - **Implementation complexity:** **Easy to medium.** The training loop already accepts a `scheduler` argument, so the main work is instantiating `optim.lr_scheduler.ReduceLROnPlateau` and selecting its patience and reduction factor.
+
+### Part C: Combined experiment proposal
+
+The combined experiment I would run next is **the deep `128-64-32` architecture plus `ReduceLROnPlateau` plus early stopping**. The deeper model already produced one of the strongest balanced-data recall results before threshold tuning, so it is the best candidate for a more controlled optimization strategy. The scheduler would let the model keep learning after the first validation plateau with smaller updates, while early stopping would prevent it from spending too many epochs chasing training-loss improvements that do not help generalization.
+
+- **Problem addressed:** This combination targets the exact pattern seen in Part A: the model has enough capacity to learn useful interactions, but later epochs produce diminishing returns and a growing risk of losing precision at the recall-first operating point.
+- **Why this technique fits:** The deeper architecture supplies capacity, the scheduler refines optimization once progress slows, and early stopping cuts off the run when validation quality stops improving. Together they address both model capacity and optimization stability rather than treating them separately.
+- **Expected result:** I would expect recall to hold close to the current tuned level of `0.8974` while improving precision from `0.6720` toward roughly `0.69`, which would lift F1 above the current `0.7685` without sacrificing the screening objective. Even if the metric gain is small, this combination should also produce a more repeatable and defensible training recipe.
+- **Implementation complexity:** **Medium.** The deeper architecture already exists, and both hooks are already supported in `train_model()`, so the main work is wiring those options together and comparing the resulting curves and metrics against the current threshold-tuned baseline.
 """,
     }
 
@@ -675,6 +710,41 @@ def insert_executive_summary(nb: nbf.NotebookNode) -> None:
 This notebook builds a PyTorch MLP to screen for diabetes risk from CDC survey features, then improves it with regular experimentation and deployment-minded tuning. The final submission goes beyond the core rubric by adding threshold tuning, basic feature engineering, and a full re-run on the original imbalanced CDC population with class-weighted training."""
     )
     nb.cells.insert(1, summary_cell)
+
+
+def remove_existing_insertions(nb: nbf.NotebookNode) -> None:
+    inserted_markers = [
+        "## Executive summary",
+        "### 6.3b Stand-out experiment: tune the classification threshold",
+        "### 6.3c Stand-out experiment: feature engineering",
+        "### 6.6 Stand-out extension: train on the original imbalanced CDC dataset",
+        "### What the imbalanced experiment shows",
+    ]
+
+    filtered_cells = []
+    skip_next = 0
+
+    for cell in nb.cells:
+        if skip_next:
+            skip_next -= 1
+            continue
+
+        source = getattr(cell, "source", "")
+
+        if cell.cell_type == "markdown" and "## Executive summary" in source:
+            continue
+
+        if cell.cell_type == "markdown" and "### 6.3b Stand-out experiment: tune the classification threshold" in source:
+            skip_next = 3
+            continue
+
+        if cell.cell_type == "markdown" and "### 6.6 Stand-out extension: train on the original imbalanced CDC dataset" in source:
+            skip_next = 3
+            continue
+
+        filtered_cells.append(cell)
+
+    nb.cells = filtered_cells
 
 
 def insert_balanced_extensions(nb: nbf.NotebookNode) -> None:
@@ -984,6 +1054,7 @@ def main() -> None:
     nb = nbf.read(NOTEBOOK_PATH, as_version=4)
     apply_replacements(nb)
     update_dataloader_checkpoint(nb)
+    remove_existing_insertions(nb)
     insert_executive_summary(nb)
     insert_balanced_extensions(nb)
     insert_imbalanced_extension(nb)
